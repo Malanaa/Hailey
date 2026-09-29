@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - run: npm run docs:check
+      - run: npm run build
+      - name: Verify packaged CLI
+        run: |
+          npm install --prefix smoke --ignore-scripts ./dist/hailey-lang-0.1.0.tgz
+          node smoke/node_modules/hailey-lang/bin/hailey.js version
+          node smoke/node_modules/hailey-lang/bin/hailey.js run examples/triage.hailey

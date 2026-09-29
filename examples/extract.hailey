@@ -1,0 +1,33 @@
+type Contact {
+  name: String
+  email: String?
+  interests: String[]
+}
+
+model fixture {
+  provider: "mock"
+}
+
+task extract(text: String) -> Contact {
+  model: fixture
+  system: "Extract the contact. Use null when the email is missing."
+  prompt: "{{text}}"
+  mock: {
+    name: "Avery"
+    email: null
+    interests: ["language design", "AI"]
+  }
+}
+
+flow main {
+  let contact = extract("Avery works on language design and AI.")
+  print contact
+  if contact.email == null {
+    print "Ask for an email before sending anything"
+  }
+}
+
+test missing_email {
+  let contact = extract("Avery works on language design and AI.")
+  assert contact.email == null
+}

@@ -1,0 +1,29 @@
+// Choose a model available through your provider.
+// This example makes a paid network request when configured.
+type Ticket {
+  category: "billing" | "bug" | "question"
+  summary: String
+  needs_review: Bool
+}
+
+model remote {
+  provider: "compatible"
+  endpoint: "https://api.openai.com/v1/chat/completions"
+  api_key: "OPENAI_API_KEY"
+  name: "gpt-4.1-mini"
+  max_output_tokens: 512
+  timeout_ms: 30000
+  format: "json_schema"
+}
+
+task classify(message: String) -> Ticket {
+  model: remote
+  system: "Classify support requests. Set needs_review when the message is ambiguous."
+  prompt: "{{message}}"
+  retries: 1
+}
+
+flow main {
+  let ticket = classify(input("message"))
+  print ticket
+}

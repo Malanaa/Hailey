@@ -1,0 +1,3 @@
+Duplicate charges go to the accounts team.
+Escalate an outage to the on-call team.
+Do not promise refunds without reviewing the charge.

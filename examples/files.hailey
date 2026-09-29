@@ -1,0 +1,6 @@
+// File paths are relative to this source file.
+// Run with --allow-read examples to grant access.
+flow main {
+  let policy = read_text("policy.txt")
+  print policy
+}

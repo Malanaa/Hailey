@@ -1,0 +1,42 @@
+// This example uses a fixed fixture. No network or API key is needed.
+type Ticket {
+  category: "billing" | "bug" | "question"
+  urgency: "low" | "high"
+  summary: String
+}
+
+model local {
+  provider: "mock"
+}
+
+context policy {
+  text: "Billing questions go to the accounts team. Outages are high urgency."
+}
+
+task classify(message: String) -> Ticket {
+  model: local
+  context: [policy]
+  system: "Classify the support message using the policy."
+  prompt: "Message: {{message}}"
+  mock: {
+    category: "billing"
+    urgency: "low"
+    summary: "Customer reports a duplicate charge."
+  }
+}
+
+flow main {
+  let ticket = classify("I was charged twice this month.")
+  print ticket
+  if ticket.category == "billing" {
+    print "Route to accounts"
+  } else {
+    print "Route to support"
+  }
+}
+
+test billing {
+  let ticket = classify("I was charged twice this month.")
+  assert ticket.category == "billing"
+  assert ticket.urgency == "low"
+}

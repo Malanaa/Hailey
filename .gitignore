@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.hailey/
+*.trace.json
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/

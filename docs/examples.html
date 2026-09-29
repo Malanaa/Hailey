@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Recipes and examples · Hailey</title><meta name="description" content="Runnable patterns for classification, extraction, task composition, and local input."><meta name="theme-color" content="#faf9f6"><meta property="og:title" content="Recipes and examples · Hailey"><meta property="og:description" content="Runnable patterns for classification, extraction, task composition, and local input."><link rel="icon" type="image/svg+xml" href="assets/mark.svg"><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip" href="#main">Skip to content</a><header><div class="header-inner"><a class="brand" href="index.html" aria-label="Hailey home"><img src="assets/mark.svg" alt="" width="32" height="32">hailey<span class="version">v0.1.0</span></a><nav class="top-nav" aria-label="Main navigation"><a class="secondary" href="getting-started.html">Documentation</a><a class="secondary" href="https://github.com/Malanaa/Hailey">GitHub ↗</a><a class="nav-cta" href="https://github.com/Malanaa/Hailey/releases/tag/v0.1.0">Download <span aria-hidden="true">↓</span></a><button class="mobile-toggle" aria-expanded="false" aria-controls="docs-sidebar">Menu</button></nav></div></header><div class="docs-layout"><aside class="sidebar" id="docs-sidebar"><div class="search-wrap"><input id="search" type="search" placeholder="Find a page…" aria-label="Search documentation pages"><kbd>/</kbd></div><div class="search-results" aria-live="polite"></div><div class="nav-label">Documentation</div><nav aria-label="Documentation"><a href="getting-started.html" data-keywords="install download npm node windows setup quickstart">Getting started</a><a href="language.html" data-keywords="syntax types task context flow test String Bool arrays nullable input read_text assert">Language reference</a><a href="providers.html" data-keywords="api key openai compatible endpoint mock local ollama json schema timeout retry cost prices">Models and providers</a><a href="tracing.html" data-keywords="debug recording inspect privacy failure source hash reproducible">Traces and replay</a><a href="cli.html" data-keywords="commands flags max calls budget run check test init version errors">CLI reference</a><a href="examples.html" data-keywords="classification extraction uncertainty branching files chaining" aria-current="page">Recipes and examples</a><a href="embedding.html" data-keywords="embed node runtime compile run options errors fetch">JavaScript API</a><a href="architecture.html" data-keywords="parser checker interpreter security roadmap contributing grammar design">Architecture and limits</a></nav><div class="sidebar-note">VERSION 0.1.0<br>Node.js 22+<br>Zero runtime dependencies<br><br><a href="https://github.com/Malanaa/Hailey/releases">Release notes ↗</a></div></aside><main class="article" id="main"><div class="breadcrumb">Docs <span aria-hidden="true">/</span> Recipes and examples</div><h1>Recipes and examples</h1><p class="lead">Runnable patterns for classification, extraction, task composition, and local input.</p><h2 id="triage">Support ticket triage</h2><p>This complete offline program combines a typed result, named context, branching, and a test. The mock value is deliberately explicit so the example runs without credentials.</p><pre data-example="examples/triage.hailey"><code>// This example uses a fixed fixture. No network or API key is needed.
+type Ticket {
+  category: &quot;billing&quot; | &quot;bug&quot; | &quot;question&quot;
+  urgency: &quot;low&quot; | &quot;high&quot;
+  summary: String
+}
+
+model local {
+  provider: &quot;mock&quot;
+}
+
+context policy {
+  text: &quot;Billing questions go to the accounts team. Outages are high urgency.&quot;
+}
+
+task classify(message: String) -&gt; Ticket {
+  model: local
+  context: [policy]
+  system: &quot;Classify the support message using the policy.&quot;
+  prompt: &quot;Message: {{message}}&quot;
+  mock: {
+    category: &quot;billing&quot;
+    urgency: &quot;low&quot;
+    summary: &quot;Customer reports a duplicate charge.&quot;
+  }
+}
+
+flow main {
+  let ticket = classify(&quot;I was charged twice this month.&quot;)
+  print ticket
+  if ticket.category == &quot;billing&quot; {
+    print &quot;Route to accounts&quot;
+  } else {
+    print &quot;Route to support&quot;
+  }
+}
+
+test billing {
+  let ticket = classify(&quot;I was charged twice this month.&quot;)
+  assert ticket.category == &quot;billing&quot;
+  assert ticket.urgency == &quot;low&quot;
+}</code></pre><pre><code>hailey run examples/triage.hailey
+hailey test examples/triage.hailey</code></pre><h2 id="extraction">Represent missing information</h2><p>Nullable values let the workflow distinguish absent data from an invented placeholder. Here the result has no email address, so the workflow asks for one.</p><pre data-example="examples/extract.hailey"><code>type Contact {
+  name: String
+  email: String?
+  interests: String[]
+}
+
+model fixture {
+  provider: &quot;mock&quot;
+}
+
+task extract(text: String) -&gt; Contact {
+  model: fixture
+  system: &quot;Extract the contact. Use null when the email is missing.&quot;
+  prompt: &quot;{{text}}&quot;
+  mock: {
+    name: &quot;Avery&quot;
+    email: null
+    interests: [&quot;language design&quot;, &quot;AI&quot;]
+  }
+}
+
+flow main {
+  let contact = extract(&quot;Avery works on language design and AI.&quot;)
+  print contact
+  if contact.email == null {
+    print &quot;Ask for an email before sending anything&quot;
+  }
+}
+
+test missing_email {
+  let contact = extract(&quot;Avery works on language design and AI.&quot;)
+  assert contact.email == null
+}</code></pre><h2 id="chaining">Chain two tasks</h2><p>Tasks can pass structured results to other tasks. Calls remain sequential. Each task consumes an attempt, and both results appear in the trace.</p><pre><code>type Ticket { category: &quot;billing&quot; | &quot;bug&quot; }
+model fixture { provider: &quot;mock&quot; }
+
+task classify(message: String) -&gt; Ticket {
+  model: fixture
+  prompt: &quot;Classify {{message}}&quot;
+  mock: { category: &quot;billing&quot; }
+}
+
+task draft(ticket: Ticket) -&gt; String {
+  model: fixture
+  prompt: &quot;Draft a reply for {{ticket.category}}&quot;
+  mock: &quot;We will review the duplicate charge.&quot;
+}
+
+flow main {
+  let ticket = classify(&quot;I was charged twice.&quot;)
+  let reply = draft(ticket)
+  print reply
+}</code></pre><h2 id="files">Bring a local file into a workflow</h2><p>File reads require an explicit directory grant. You can pass the resulting String to a task parameter. Hailey records the content when tracing is enabled.</p><pre data-example="examples/files.hailey"><code>// File paths are relative to this source file.
+// Run with --allow-read examples to grant access.
+flow main {
+  let policy = read_text(&quot;policy.txt&quot;)
+  print policy
+}</code></pre><pre><code>hailey run examples/files.hailey --allow-read examples</code></pre><h2 id="input">Take input from another application</h2><pre><code>flow main {
+  let message = input(&quot;message&quot;)
+  print message
+}</code></pre><pre><code>hailey run echo.hailey --input &quot;message=Hello from the shell&quot;</code></pre><p>For programmatic integration, the <a href="embedding.html">JavaScript API</a> gives you structured output without parsing console text.</p><h2 id="evaluating">Move beyond fixture tests</h2><p>Replace the mock model with a compatible provider and remove the mock property when you want actual inference. Use a set of representative messages, include ambiguous inputs, and review incorrect results. A passing fixture test proves workflow behavior for that fixture. It says nothing about the quality of a live model.</p><p>Hailey v0.1 provides assertion-based test blocks. Dataset loaders, statistical evaluation reports, prompt optimization, and model comparisons are future work. You can build those around the JavaScript API today.</p><div class="page-bottom"><a href="https://github.com/Malanaa/Hailey/edit/main/docs/examples.html">Improve this page ↗</a><a href="embedding.html">JavaScript API →</a></div></main></div><footer><div class="container footer-inner"><span>hailey <span aria-hidden="true">/</span> Small language. Clear execution.</span><div class="footer-links"><a href="https://github.com/Malanaa/Hailey">Source ↗</a><a href="https://github.com/Malanaa/Hailey/issues">Feedback</a><a href="https://github.com/Malanaa/Hailey/blob/main/LICENSE">MIT license</a><span>Made to be understood.</span></div></div></footer></body></html>

@@ -1,0 +1,22 @@
+{
+  "name": "hailey-lang",
+  "version": "0.1.0",
+  "description": "A small language for typed AI workflows with explicit context, bounded calls, and inspectable replay.",
+  "type": "module",
+  "bin": { "hailey": "bin/hailey.js" },
+  "exports": "./src/index.js",
+  "files": ["bin", "src", "examples", "README.md", "LICENSE", "CHANGELOG.md"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test",
+    "check": "node bin/hailey.js check examples/triage.hailey",
+    "demo": "node bin/hailey.js run examples/triage.hailey",
+    "docs:check": "node scripts/check-docs.js",
+    "build": "node scripts/build.js"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/Malanaa/Hailey.git" },
+  "homepage": "https://malanaa.github.io/Hailey/",
+  "bugs": "https://github.com/Malanaa/Hailey/issues",
+  "keywords": ["ai", "llm", "programming-language", "workflow", "replay", "structured-output"],
+  "license": "MIT"
+}

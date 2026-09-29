@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Models and providers · Hailey</title><meta name="description" content="Move from deterministic fixtures to real inference with explicit configuration and honest cost reporting."><meta name="theme-color" content="#faf9f6"><meta property="og:title" content="Models and providers · Hailey"><meta property="og:description" content="Move from deterministic fixtures to real inference with explicit configuration and honest cost reporting."><link rel="icon" type="image/svg+xml" href="assets/mark.svg"><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip" href="#main">Skip to content</a><header><div class="header-inner"><a class="brand" href="index.html" aria-label="Hailey home"><img src="assets/mark.svg" alt="" width="32" height="32">hailey<span class="version">v0.1.0</span></a><nav class="top-nav" aria-label="Main navigation"><a class="secondary" href="getting-started.html">Documentation</a><a class="secondary" href="https://github.com/Malanaa/Hailey">GitHub ↗</a><a class="nav-cta" href="https://github.com/Malanaa/Hailey/releases/tag/v0.1.0">Download <span aria-hidden="true">↓</span></a><button class="mobile-toggle" aria-expanded="false" aria-controls="docs-sidebar">Menu</button></nav></div></header><div class="docs-layout"><aside class="sidebar" id="docs-sidebar"><div class="search-wrap"><input id="search" type="search" placeholder="Find a page…" aria-label="Search documentation pages"><kbd>/</kbd></div><div class="search-results" aria-live="polite"></div><div class="nav-label">Documentation</div><nav aria-label="Documentation"><a href="getting-started.html" data-keywords="install download npm node windows setup quickstart">Getting started</a><a href="language.html" data-keywords="syntax types task context flow test String Bool arrays nullable input read_text assert">Language reference</a><a href="providers.html" data-keywords="api key openai compatible endpoint mock local ollama json schema timeout retry cost prices" aria-current="page">Models and providers</a><a href="tracing.html" data-keywords="debug recording inspect privacy failure source hash reproducible">Traces and replay</a><a href="cli.html" data-keywords="commands flags max calls budget run check test init version errors">CLI reference</a><a href="examples.html" data-keywords="classification extraction uncertainty branching files chaining">Recipes and examples</a><a href="embedding.html" data-keywords="embed node runtime compile run options errors fetch">JavaScript API</a><a href="architecture.html" data-keywords="parser checker interpreter security roadmap contributing grammar design">Architecture and limits</a></nav><div class="sidebar-note">VERSION 0.1.0<br>Node.js 22+<br>Zero runtime dependencies<br><br><a href="https://github.com/Malanaa/Hailey/releases">Release notes ↗</a></div></aside><main class="article" id="main"><div class="breadcrumb">Docs <span aria-hidden="true">/</span> Models and providers</div><h1>Models and providers</h1><p class="lead">Move from deterministic fixtures to real inference with explicit configuration and honest cost reporting.</p><h2 id="mock">Start with the mock provider</h2><p>The mock provider returns a task's declared fixture exactly. It does not inspect the prompt or synthesize a result. This is useful for offline development, deterministic workflow tests, and package verification.</p><pre><code>model local { provider: &quot;mock&quot; }
+
+task greet(name: String) -&gt; String {
+  model: local
+  prompt: &quot;Greet {{name}}&quot;
+  mock: &quot;Hello, Avery&quot;
+}
+
+flow main { print greet(&quot;Avery&quot;) }</code></pre><h2 id="compatible">Connect a compatible endpoint</h2><p>The compatible adapter implements the Chat Completions request and response format. Configure the full POST endpoint, not just a base URL. Compatibility varies across providers, model families, and local servers.</p><pre data-example="examples/live.hailey"><code>// Choose a model available through your provider.
+// This example makes a paid network request when configured.
+type Ticket {
+  category: &quot;billing&quot; | &quot;bug&quot; | &quot;question&quot;
+  summary: String
+  needs_review: Bool
+}
+
+model remote {
+  provider: &quot;compatible&quot;
+  endpoint: &quot;https://api.openai.com/v1/chat/completions&quot;
+  api_key: &quot;OPENAI_API_KEY&quot;
+  name: &quot;gpt-4.1-mini&quot;
+  max_output_tokens: 512
+  timeout_ms: 30000
+  format: &quot;json_schema&quot;
+}
+
+task classify(message: String) -&gt; Ticket {
+  model: remote
+  system: &quot;Classify support requests. Set needs_review when the message is ambiguous.&quot;
+  prompt: &quot;{{message}}&quot;
+  retries: 1
+}
+
+flow main {
+  let ticket = classify(input(&quot;message&quot;))
+  print ticket
+}</code></pre><p>Save this as <code>live.hailey</code>, then set your credential in the shell and run the flow.</p><pre><code>export OPENAI_API_KEY=&quot;your-api-key&quot;
+hailey run live.hailey --input &quot;message=I was charged twice&quot; --max-calls 2 --trace live.trace.json</code></pre><p>For PowerShell, use <code>$env:OPENAI_API_KEY = "your-api-key"</code>. The <code>api_key</code> property contains an environment variable name, never the credential itself. Hailey does not automatically read a <code>.env</code> file.</p><div class="callout warm"><strong>Choose your own model</strong>The example names a model for illustration. Verify availability, supported request fields, and pricing with your provider. No paid provider call was used to validate this release.</div><h2 id="settings">Model settings</h2><div class="table-wrap"><table><thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td>provider</td><td>mock</td><td><code>mock</code> or <code>compatible</code></td></tr><tr><td>name</td><td>None</td><td>Required provider model identifier for compatible models</td></tr><tr><td>endpoint</td><td>None</td><td>Required full HTTP POST endpoint for compatible models</td></tr><tr><td>api_key</td><td>None</td><td>Optional environment variable containing the Bearer token</td></tr><tr><td>max_output_tokens</td><td>512</td><td>Positive integer sent to the provider as the output limit</td></tr><tr><td>timeout_ms</td><td>30000</td><td>Per-attempt HTTP timeout in milliseconds</td></tr><tr><td>format</td><td>json_schema</td><td><code>json_schema</code> for strict schema requests, or <code>json_object</code> for JSON mode</td></tr><tr><td>token_parameter</td><td>max_completion_tokens</td><td>Set <code>max_tokens</code> for endpoints that require that field</td></tr><tr><td>input_price</td><td>Unknown</td><td>USD per million input tokens, must be paired with output_price</td></tr><tr><td>output_price</td><td>Unknown</td><td>USD per million output tokens, must be paired with input_price</td></tr></tbody></table></div><p>Use HTTPS for remote endpoints. HTTP is permitted only for <code>localhost</code>, <code>127.0.0.1</code>, or <code>[::1]</code>. URLs cannot contain credentials, query parameters, or fragments. The adapter rejects redirects rather than forwarding credentials elsewhere.</p><h3>Local server configuration</h3><pre><code>model local_server {
+  provider: &quot;compatible&quot;
+  endpoint: &quot;http://127.0.0.1:1234/v1/chat/completions&quot;
+  name: &quot;your-loaded-model&quot;
+  format: &quot;json_object&quot;
+  token_parameter: &quot;max_tokens&quot;
+  max_output_tokens: 512
+}</code></pre><p>This is a configuration pattern, not a server installer. Start a server that supports this route and response format, then use its port and loaded model name. JSON mode still receives the schema as part of the system message, and Hailey validates the returned value locally.</p><h2 id="cost">Cost reporting</h2><p>Hailey reads <code>prompt_tokens</code> and <code>completion_tokens</code> from provider usage metadata. Set both price fields when you want an estimate. These illustrative prices are not a quote for any model.</p><pre><code>// Illustrative only. Replace with your provider prices.
+model priced {
+  provider: &quot;compatible&quot;
+  endpoint: &quot;https://your-provider.example/v1/chat/completions&quot;
+  name: &quot;your-model&quot;
+  input_price: 2
+  output_price: 8
+}</code></pre><p>The estimate is <code>(input tokens × input price + output tokens × output price) / 1,000,000</code>. It does not include separate cache rates, tools, images, taxes, discounts, or other provider billing details. A billed response that fails schema validation still contributes its reported usage. Missing usage or missing prices produce <code>null</code> cost, and the CLI counts those attempts as unpriced.</p><div class="callout warm"><strong>Visibility is not a dollar cap</strong>The runtime limits attempts, while the provider controls token generation and billing. An HTTP timeout can happen after a provider has started billable work. Configure provider-side spending controls when needed.</div><h2 id="retries">Retries and failures</h2><p>A task can set <code>retries</code> from 0 to 5. The default is zero. The runtime retries invalid JSON, type-invalid outputs, network failures, timeout errors, and HTTP 408, 429, 500, 502, 503, and 504. Delays start at 250 ms and double to a maximum of 4 seconds.</p><p>Authentication failures, explicit model refusals, and truncated outputs fail immediately. Every attempt consumes the same run-level call budget. With <code>--max-calls 2</code>, no third model attempt can begin, even if the task asks for more retries.</p><h2 id="sources">Protocol references</h2><p>The request format follows the <a href="https://developers.openai.com/api/reference/resources/chat">official Chat Completions reference</a>. Other compatible providers may implement only part of that protocol. Consult your chosen service before switching formats or token-limit fields.</p><div class="page-bottom"><a href="https://github.com/Malanaa/Hailey/edit/main/docs/providers.html">Improve this page ↗</a><a href="tracing.html">Traces and replay →</a></div></main></div><footer><div class="container footer-inner"><span>hailey <span aria-hidden="true">/</span> Small language. Clear execution.</span><div class="footer-links"><a href="https://github.com/Malanaa/Hailey">Source ↗</a><a href="https://github.com/Malanaa/Hailey/issues">Feedback</a><a href="https://github.com/Malanaa/Hailey/blob/main/LICENSE">MIT license</a><span>Made to be understood.</span></div></div></footer></body></html>
