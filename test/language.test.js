@@ -53,8 +53,8 @@ test('nullable fields and typed arrays work', async () => {
 })
 
 test('bad fields, enum members, extra keys, and missing nullable fields fail', () => {
-  assert.throws(() => compile(source.replace('category: "billing"\n', 'category: "other"\n')), code('TYPE'))
-  assert.throws(() => compile(source.replace('print ticket\n', 'print ticket.nope\n')), code('CHECK'))
+  assert.throws(() => compile(source.replace(/category: "billing"\r?\n/, 'category: "other"\n')), code('TYPE'))
+  assert.throws(() => compile(source.replace(/print ticket\r?\n/, 'print ticket.nope\n')), code('CHECK'))
   assert.throws(() => compile(source.replace('summary: "Customer', 'unknown: true\n    summary: "Customer')), code('TYPE'))
   assert.throws(() => compile('type T { value: String? } model m {} task t() -> T { model: m prompt: "x" mock: {} }'), code('TYPE'))
 })
@@ -152,4 +152,11 @@ import { fileURLToPath } from 'node:url'
 test('string literals cannot stand in for declaration or statement keywords', () => {
   assert.throws(() => compile('"flow" main { print 1 }'), { code: 'PARSE' })
   assert.throws(() => compile('flow main { "print" 1 }'), { code: 'PARSE' })
+})
+
+
+test('Windows line endings parse and execute normally', async () => {
+  const crlf = source.replace(/\r?\n/g, '\r\n')
+  const trace = await run(crlf)
+  assert.equal(trace.outputs[0].category, 'billing')
 })
