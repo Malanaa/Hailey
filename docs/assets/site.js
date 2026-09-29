@@ -1,5 +1,6 @@
 const toggle = document.querySelector('.mobile-toggle')
 const sidebar = document.querySelector('.sidebar')
+if (!sidebar) toggle?.remove()
 toggle?.addEventListener('click', () => {
   const open = sidebar.classList.toggle('open')
   toggle.setAttribute('aria-expanded', String(open))
@@ -21,6 +22,7 @@ document.addEventListener('keydown', event => {
   }
 })
 for (const block of document.querySelectorAll('pre, .install')) {
+  if (block.closest('.editor')) continue
   const button = document.createElement('button')
   button.className = 'copy'
   button.type = 'button'
